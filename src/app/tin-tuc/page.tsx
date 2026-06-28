@@ -9,7 +9,8 @@ import type { LiveNewsItem } from "@/lib/data-engine";
 import { getNews as getFallbackNews } from "@/lib/market-data";
 
 export const metadata = { title: "Tin tức" };
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 /** Hiển thị ảnh tin tức: dùng ảnh thật từ nguồn, fallback sang placeholder SVG nếu không có. */
 function NewsImage({ src, alt, className }: { src: string | null; alt: string; className?: string }) {
