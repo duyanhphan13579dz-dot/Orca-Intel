@@ -150,18 +150,22 @@ export async function syncNews(): Promise<SyncResult[]> {
 
 export async function getRecentNews(limit = 20, category?: string, maxHours = MAX_AGE_HOURS): Promise<LiveNewsItem[]> {
   const cutoff = new Date(Date.now() - maxHours * 3_600_000);
-  const query = db.select().from(newsItems)
-    .where(
-      and(
-        eq(newsItems.isValid, true),
-        sql`${newsItems.publishedAt} > ${cutoff} OR ${newsItems.publishedAt} IS NULL`,
-        ...(category ? [eq(newsItems.category, category)] : []),
-      ),
-    )
-    .orderBy(sql`${newsItems.publishedAt} DESC NULLS LAST, ${newsItems.syncedAt} DESC`)
-    .limit(limit);
-
-  const rows = await query;
+  let rows: typeof newsItems.$inferSelect[] = [];
+  try {
+    rows = await db.select().from(newsItems)
+      .where(
+        and(
+          eq(newsItems.isValid, true),
+          sql`${newsItems.publishedAt} > ${cutoff} OR ${newsItems.publishedAt} IS NULL`,
+          ...(category ? [eq(newsItems.category, category)] : []),
+        ),
+      )
+      .orderBy(sql`${newsItems.publishedAt} DESC NULLS LAST, ${newsItems.syncedAt} DESC`)
+      .limit(limit);
+  } catch (e) {
+    console.warn("[news-engine] getRecentNews fallback:", e instanceof Error ? e.message : e);
+    return []; // Trang tin-tuc đã có fallback sang mock
+  }
   return rows.map((r) => ({
     guid: r.guid,
     title: r.title,
@@ -183,17 +187,21 @@ export async function getRecentNews(limit = 20, category?: string, maxHours = MA
 }
 
 export async function getNewsSyncStatus(): Promise<{ total: number; valid: number; lastSync: string | null; sourceCount: number }> {
-  const r = await db.select({
-    total: sql<number>`count(*)`,
-    valid: sql<number>`count(*) filter (where ${newsItems.isValid} = true)`,
-    lastSync: sql<string>`max(${newsItems.syncedAt})`,
-  }).from(newsItems);
-  return {
-    total: Number(r[0]?.total ?? 0),
-    valid: Number(r[0]?.valid ?? 0),
-    lastSync: r[0]?.lastSync ?? null,
-    sourceCount: SOURCES.length,
-  };
+  try {
+    const r = await db.select({
+      total: sql<number>`count(*)`,
+      valid: sql<number>`count(*) filter (where ${newsItems.isValid} = true)`,
+      lastSync: sql<string>`max(${newsItems.syncedAt})`,
+    }).from(newsItems);
+    return {
+      total: Number(r[0]?.total ?? 0),
+      valid: Number(r[0]?.valid ?? 0),
+      lastSync: r[0]?.lastSync ?? null,
+      sourceCount: SOURCES.length,
+    };
+  } catch {
+    return { total: 0, valid: 0, lastSync: null, sourceCount: SOURCES.length };
+  }
 }
 
 function tryParseJson(s: string | null | undefined): string[] {
