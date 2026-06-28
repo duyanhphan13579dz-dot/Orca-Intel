@@ -4,7 +4,8 @@ import { DataSourceBadge } from "@/components/DataSourceBadge";
 import { getCalendarEvents } from "@/lib/data-engine";
 
 export const metadata = { title: "Lịch kinh tế" };
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const STATUS_CLS: Record<string, string> = {
   "Đã công bố": "text-emerald-400",
