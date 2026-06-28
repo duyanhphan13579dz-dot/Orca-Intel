@@ -198,10 +198,18 @@ export async function syncCalendar(): Promise<SyncResult> {
 export async function getCalendarEvents(days = 7): Promise<LiveCalendarEvent[]> {
   const from = new Date();
   from.setHours(0, 0, 0, 0);
-  const rows = await db.select().from(calendarEvents)
-    .where(gte(calendarEvents.eventDate, from.toISOString().slice(0, 10)))
-    .orderBy(calendarEvents.eventDate, calendarEvents.eventTime)
-    .limit(days * 8);
+  let rows: typeof calendarEvents.$inferSelect[] = [];
+  try {
+    rows = await db.select().from(calendarEvents)
+      .where(gte(calendarEvents.eventDate, from.toISOString().slice(0, 10)))
+      .orderBy(calendarEvents.eventDate, calendarEvents.eventTime)
+      .limit(days * 8);
+  } catch (e) {
+    console.warn("[calendar-engine] getCalendarEvents fallback:", e instanceof Error ? e.message : e);
+    // Trả lịch tính toán tĩnh khi DB chưa sẵn sàng
+    const now = new Date().toISOString();
+    return buildCalendar().map((e) => ({ ...e, syncedAt: now })) as LiveCalendarEvent[];
+  }
 
   const now = new Date().toISOString();
   if (rows.length === 0) {
