@@ -164,10 +164,17 @@ export async function syncMacroIndicators(): Promise<SyncResult> {
 }
 
 export async function getMacroData(): Promise<LiveMacroItem[]> {
-  const rows = await db.select().from(macroIndicators).orderBy(macroIndicators.region, macroIndicators.name);
   const now = new Date().toISOString();
+  let rows: typeof macroIndicators.$inferSelect[] = [];
+  try {
+    rows = await db.select().from(macroIndicators).orderBy(macroIndicators.region, macroIndicators.name);
+  } catch (e) {
+    // DB chưa sẵn sàng (không có DATABASE_URL khi build) → trả fallback tĩnh có nguồn rõ ràng
+    console.warn("[macro-engine] getMacroData fallback:", e instanceof Error ? e.message : e);
+    return RATE_FALLBACK.map((r) => ({ ...r, syncedAt: now }));
+  }
   if (rows.length === 0) {
-    // Trả về dữ liệu tĩnh với metadata nguồn rõ ràng khi DB chưa sync
+    // DB sẵn sàng nhưng chưa sync → trả fallback tĩnh
     return RATE_FALLBACK.map((r) => ({ ...r, syncedAt: now }));
   }
   return rows.map((r) => ({
