@@ -193,12 +193,18 @@ export async function syncPrices(symbols: string[]): Promise<number> {
 
 // ---------- GET SYNC STATUS ----------
 export async function getSyncStatus() {
-  const result = await db.select({
-    total: sql<number>`count(*)`,
-    active: sql<number>`count(*) filter (where ${stocks.status} = 'active')`,
-    withPrice: sql<number>`count(*) filter (where ${stocks.price} > 0)`,
-    lastSync: sql<string>`max(${stocks.priceUpdatedAt})`,
-  }).from(stocks);
+  let result: { total: number; active: number; withPrice: number; lastSync: string | null }[] = [];
+  try {
+    result = await db.select({
+      total: sql<number>`count(*)`,
+      active: sql<number>`count(*) filter (where ${stocks.status} = 'active')`,
+      withPrice: sql<number>`count(*) filter (where ${stocks.price} > 0)`,
+      lastSync: sql<string>`max(${stocks.priceUpdatedAt})`,
+    }).from(stocks);
+  } catch (e) {
+    console.warn("[stock-sync] getSyncStatus fallback:", e instanceof Error ? e.message : e);
+    return { totalStocks: 0, activeStocks: 0, withPrice: 0, lastSync: null };
+  }
 
   const row = result[0];
   return {
