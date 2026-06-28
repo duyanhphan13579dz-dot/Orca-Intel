@@ -8,7 +8,8 @@ import { colorOf, formatChange } from "@/lib/format";
 import Link from "next/link";
 
 export const metadata = { title: "Kinh tế vĩ mô" };
-export const revalidate = 900;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export default async function KinhTePage() {
   const macro = await getMacroData();
